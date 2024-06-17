@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image with Hotspots</title>
+    <style>
+        /* 全体のスタイル設定 */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #fffaf0; /* 背景色を淡いオレンジに設定 */
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 画像とホットスポットを表示するフレームのスタイル */
+        #frame {
+            width: 800px;
+            height: 600px;
+            overflow: hidden;
+            position: relative;
+            margin: 20px auto;
+            border: 2px solid #ffcc99; /* 枠の色を淡いオレンジに設定 */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: #fffaf0; /* 背景色をフレームと一致させる */
+        }
+
+        /* 画像コンテナのスタイル */
+        #image-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: grab; /* デフォルトのカーソル */
+        }
+
+        /* ドラッグ中のカーソルスタイル */
+        #image-container.grabbing {
+            cursor: grabbing;
+        }
+
+        /* メイン画像のスタイル */
+        #main-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform-origin: top left;
+        }
+
+        /* ホットスポットのスタイル */
+        .hotspot {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 165, 0, 0.7); /* 半透明のオレンジ */
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-family: 'Arial', sans-serif;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, background-color 0.3s;
+        }
+
+        /* ホットスポットのホバー時のスタイル */
+        .hotspot:hover {
+            transform: scale(1.2);
+            background-color: rgba(255, 140, 0, 0.9); /* ホバー時に濃いオレンジに変更 */
+        }
+
+        /* ズームコントロールボタンのスタイル */
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+
+        /* ズームコントロールボタンのスタイル */
+        #controls button {
+            font-size: 16px;
+            padding: 5px 10px;
+            margin: 2px;
+            border: none;
+            background-color: #ffcc99; /* 淡いオレンジ */
+            color: #fffaf0; /* 背景色と一致させる */
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        /* ズームコントロールボタンのホバー時のスタイル */
+        #controls button:hover {
+            background-color: #ffa500; /* 濃いオレンジに変更 */
+        }
+
+        /* コンテキストメニューのスタイル */
+        .menu {
+            position: absolute;
+            display: none;
+            background-color: #fffaf0; /* 背景色を淡いオレンジに設定 */
+            border: 1px solid #ffcc99; /* 枠の色を淡いオレンジに設定 */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            border-radius: 5px;
+            min-width: 120px; /* コンテンツがあふれないように最小幅を設定 */
+        }
+
+        /* コンテキストメニューのボタンスタイル */
+        .menu button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 16px;
+            color: #d35400; /* 濃いオレンジの文字色 */
+            border-bottom: 1px solid #ffcc99;
+            transition: background-color 0.3s;
+        }
+
+        /* コンテキストメニューのボタンホバー時のスタイル */
+        .menu button:hover {
+            background-color: #ffcc99; /* ホバー時に淡いオレンジに変更 */
+        }
+
+        .menu button:last-child {
+            border-bottom: none;
+        }
+
+        /* 名前変更ポップアップのスタイル */
+        .rename-popup {
+            position: absolute;
+            display: none;
+            background-color: #fffaf0;
+            border: 1px solid #ffcc99;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 200;
+        }
+
+        /* 名前変更ポップアップの入力フィールドスタイル */
+        .rename-popup input {
+            font-size: 16px;
+            padding: 5px;
+            margin-bottom: 10px;
+            width: calc(100% - 12px);
+            border: 1px solid #ffcc99;
+            border-radius: 3px;
+        }
+
+        /* 名前変更ポップアップのボタンスタイル */
+        .rename-popup button {
+            font-size: 16px;
+            padding: 5px 10px;
+            margin: 5px;
+            border: none;
+            background-color: #ffcc99;
+            color: #fffaf0;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        /* 名前変更ポップアップのボタンホバー時のスタイル */
+        .rename-popup button:hover {
+            background-color: #ffa500;
+        }
+
+        /* 回転記号選択ポップアップのスタイル */
+        .rotate-popup {
+            position: absolute;
+            display: none;
+            background-color: #fffaf0;
+            border: 1px solid #ffcc99;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 200;
+        }
+
+        /* 回転記号選択ボタンのスタイル */
+        .rotate-popup button {
+            font-size: 24px;
+            padding: 10px;
+            margin: 5px;
+            border: none;
+            background-color: #ffcc99;
+            color: #fffaf0;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        /* 回転記号選択ボタンのホバー時のスタイル */
+        .rotate-popup button:hover {
+            background-color: #ffa500;
+        }
+    </style>
+</head>
+<body>
+    <div id="frame">
+        <!-- ズームコントロールボタン -->
+        <div id="controls">
+            <button onclick="zoomImage(1.1)">+</button>
+            <button onclick="zoomImage(0.9)">-</button>
+        </div>
+        <!-- 画像とホットスポットを表示するコンテナ -->
+        <div id="image-container">
+            <img src="/static/【モノクロ】機械室サンプル図面.jpg" id="main-image" alt="Main Image">
+        </div>
+        <!-- コンテキストメニュー -->
+        <div id="menu" class="menu">
+            <button id="rename-button">名称</button>
+            <button id="rotate-button">回転</button>
+            <button id="delete-button">削除</button>
+            <button id="cancel-button">キャンセル</button>
+        </div>
+        <!-- 名前変更ポップアップ -->
+        <div id="rename-popup" class="rename-popup">
+            <input type="text" id="new-name" placeholder="新しい名前">
+            <div>
+                <button id="save-name-button">保存</button>
+                <button id="cancel-name-button">キャンセル</button>
+            </div>
+        </div>
+        <!-- 回転記号選択ポップアップ -->
+        <div id="rotate-popup" class="rotate-popup">
+            <button id="arrow-right">⇨</button>
+            <button id="arrow-left">⇦</button>
+            <button id="arrow-up">⇧</button>
+            <button id="arrow-down">⇩</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const frame = document.getElementById('frame');
+        const imageContainer = document.getElementById('image-container');
+        const mainImage = document.getElementById('main-image');
+        const menu = document.getElementById('menu');
+        const renamePopup = document.getElementById('rename-popup');
+        const rotatePopup = document.getElementById('rotate-popup');
+        const newNameInput = document.getElementById('new-name');
+
+        // グローバル変数の初期化
+        let currentHotspot = null;
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let originalHotspots = [];
+        let hotspotCount = 0; // ホットスポットのカウントを初期化
+        let isDragging = false;
+        let holdTimeout;
+
+        // コンテキストメニューを無効化
+        document.addEventListener('contextmenu', function(event) {
+            event.preventDefault(); // コンテキストメニューを無効化
+        });
+
+        // ホットスポット上で右クリック長押しイベント
+        imageContainer.addEventListener('mousedown', function(event) {
+            if (event.button === 2 && event.target.classList.contains('hotspot')) { // ホットスポット上での右クリック
+                holdTimeout = setTimeout(() => {
+                    showMenu(event, event.target);
+                }, 2000); // 2秒間の長押し
+            }
+        });
+
+        // ホットスポットがない部分での右クリックイベント
+        imageContainer.addEventListener('mouseup', function(event) {
+            clearTimeout(holdTimeout);
+            if (event.button === 2 && !menu.contains(event.target) && !event.target.classList.contains('hotspot')) { // メニューやホットスポット外での右クリック
+                const x = (event.clientX - frame.getBoundingClientRect().left - translateX * scale) / scale;
+                const y = (event.clientY - frame.getBoundingClientRect().top - translateY * scale) / scale;
+                addHotspot(x, y);
+            }
+        });
+
+        imageContainer.addEventListener('mouseleave', function() {
+            clearTimeout(holdTimeout);
+        });
+
+        // ホットスポットの追加関数
+        function addHotspot(x, y) {
+            hotspotCount += 1; // ホットスポットのカウントをインクリメント
+            const info = `ホットスポット ${hotspotCount}`;
+            const hotspot = document.createElement('div');
+            hotspot.className = 'hotspot';
+            hotspot.style.left = `${x * scale + translateX * scale}px`;
+            hotspot.style.top = `${y * scale + translateY * scale}px`;
+            hotspot.title = info;
+            hotspot.innerText = `${hotspotCount}`;
+            hotspot.dataset.id = hotspotCount;
+            hotspot.dataset.info = info;
+            hotspot.onclick = () => { location.href = 'https://beeknowledge.co.jp'; };
+
+            // 新しいホットスポットに長押しイベントを追加
+            hotspot.addEventListener('mousedown', function(event) {
+                if (event.button === 2) { // 右クリック
+                    holdTimeout = setTimeout(() => {
+                        showMenu(event, hotspot);
+                    }, 2000); // 2秒間の長押し
+                }
+            });
+
+            hotspot.addEventListener('mouseup', function() {
+                clearTimeout(holdTimeout);
+            });
+
+            hotspot.addEventListener('mouseleave', function() {
+                clearTimeout(holdTimeout);
+            });
+
+            imageContainer.appendChild(hotspot);
+            originalHotspots.push({
+                element: hotspot,
+                x: x,
+                y: y
+            });
+        }
+
+        // 画像のズーム関数
+        function zoomImage(factor) {
+            const rect = mainImage.getBoundingClientRect();
+            const centerX = (rect.left + rect.width / 2) - frame.getBoundingClientRect().left;
+            const centerY = (rect.top + rect.height / 2) - frame.getBoundingClientRect().top;
+
+            const newScale = scale * factor;
+            if (newScale < 1) return; // 1倍未満のズームアウトを防止
+
+            translateX = (translateX - centerX) * factor + centerX;
+            translateY = (translateY - centerY) * factor + centerY;
+
+            scale = newScale;
+            mainImage.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+            updateHotspotPositions();
+            if (scale > 1) {
+                enableDragging();
+            } else {
+                disableDragging();
+            }
+        }
+
+        // ホットスポットの位置更新関数
+        function updateHotspotPositions() {
+            originalHotspots.forEach(hotspot => {
+                hotspot.element.style.left = `${hotspot.x * scale + translateX * scale}px`;
+                hotspot.element.style.top = `${hotspot.y * scale + translateY * scale}px`;
+            });
+        }
+
+        // ドラッグの有効化関数
+        function enableDragging() {
+            let startX, startY;
+
+            imageContainer.addEventListener('mousedown', function(event) {
+                isDragging = true;
+                startX = event.clientX;
+                startY = event.clientY;
+                imageContainer.classList.add('grabbing');
+            });
+
+            document.addEventListener('mousemove', function(event) {
+                if (isDragging) {
+                    const dx = event.clientX - startX;
+                    const dy = event.clientY - startY;
+                    translateX += dx / scale;
+                    translateY += dy / scale;
+
+                    const maxTranslateX = (frame.offsetWidth - mainImage.offsetWidth * scale) / scale;
+                    const maxTranslateY = (frame.offsetHeight - mainImage.offsetHeight * scale) / scale;
+                    translateX = Math.max(Math.min(translateX, 0), maxTranslateX);
+                    translateY = Math.max(Math.min(translateY, 0), maxTranslateY);
+
+                    startX = event.clientX;
+                    startY = event.clientY;
+                    mainImage.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+                    updateHotspotPositions();
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                imageContainer.classList.remove('grabbing');
+            });
+
+            document.addEventListener('mouseleave', function() {
+                isDragging = false;
+                imageContainer.classList.remove('grabbing');
+            });
+
+            imageContainer.style.cursor = 'grab';
+        }
+
+        // ドラッグの無効化関数
+        function disableDragging() {
+            isDragging = false;
+            imageContainer.style.cursor = 'grab';
+            imageContainer.classList.remove('grabbing');
+            imageContainer.onmousedown = null;
+            document.onmousemove = null;
+            document.onmouseup = null;
+            document.onmouseleave = null;
+        }
+
+        // メニュー表示関数
+        function showMenu(event, hotspot) {
+            currentHotspot = hotspot;
+
+            // メニューの位置をフレームの左下に固定
+            menu.style.left = `0px`;
+            menu.style.bottom = `0px`;
+            menu.style.display = 'block';
+        }
+
+        // メニュー項目のイベントリスナー追加
+        document.getElementById('rename-button').addEventListener('click', function() {
+            menu.style.display = 'none';
+            renamePopup.style.left = `${menu.style.left}`;
+            renamePopup.style.top = `${menu.style.top}`;
+            renamePopup.style.display = 'block';
+            newNameInput.value = currentHotspot.innerText;
+            newNameInput.focus();
+        });
+
+        document.getElementById('rotate-button').addEventListener('click', function() {
+            menu.style.display = 'none';
+            rotatePopup.style.left = `${menu.style.left}`;
+            rotatePopup.style.top = `${menu.style.top}`;
+            rotatePopup.style.display = 'block';
+        });
+
+        document.getElementById('delete-button').addEventListener('click', function() {
+            if (currentHotspot) {
+                currentHotspot.remove();
+                currentHotspot = null;
+                menu.style.display = 'none';
+            }
+        });
+
+        document.getElementById('cancel-button').addEventListener('click', function() {
+            menu.style.display = 'none';
+            currentHotspot = null;
+        });
+
+        // 回転記号選択ボタンのイベントリスナー追加
+        document.getElementById('arrow-right').addEventListener('click', function() {
+            addArrowToHotspot('⇨');
+        });
+
+        document.getElementById('arrow-left').addEventListener('click', function() {
+            addArrowToHotspot('⇦');
+        });
+
+        document.getElementById('arrow-up').addEventListener('click', function() {
+            addArrowToHotspot('⇧');
+        });
+
+        document.getElementById('arrow-down').addEventListener('click', function() {
+            addArrowToHotspot('⇩');
+        });
+
+        // 回転記号をホットスポット名に追加する関数
+        function addArrowToHotspot(arrow) {
+            if (currentHotspot) {
+                const name = currentHotspot.innerText;
+                const newName = name.replace(/[⇨⇦⇧⇩]$/, ''); // 既存の回転記号を削除
+                currentHotspot.innerText = newName + arrow;
+                currentHotspot.title = newName + arrow;
+                rotatePopup.style.display = 'none';
+                currentHotspot = null;
+            }
+        }
+
+        // 名前変更ポップアップのイベントリスナー追加
+        document.getElementById('save-name-button').addEventListener('click', function() {
+            if (currentHotspot) {
+                const name = currentHotspot.innerText.replace(/[⇨⇦⇧⇩]$/, ''); // 既存の回転記号を削除
+                const newName = newNameInput.value + (name.match(/[⇨⇦⇧⇩]$/) || '');
+                currentHotspot.innerText = newName;
+                currentHotspot.title = newName;
+                renamePopup.style.display = 'none';
+                currentHotspot = null;
+            }
+        });
+
+        document.getElementById('cancel-name-button').addEventListener('click', function() {
+            renamePopup.style.display = 'none';
+            currentHotspot = null;
+        });
+
+        // メニューとポップアップの表示制御
+        document.addEventListener('click', function(event) {
+            if (!menu.contains(event.target) && !event.target.classList.contains('hotspot')) {
+                menu.style.display = 'none';
+            }
+            if (!renamePopup.contains(event.target) && event.target.id !== 'rename-button') {
+                renamePopup.style.display = 'none';
+            }
+            if (!rotatePopup.contains(event.target) && event.target.id !== 'rotate-button') {
+                rotatePopup.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
